@@ -1,7 +1,7 @@
 import {Router} from 'express';
 import {Config} from '../models/config';
 
-module.exports = (APP_CONFIG: Config) => {
+const httpRedirectionMiddleware = (APP_CONFIG: Config) => {
     const router = Router();
 
     // Add CSP to redirect most browsers, HSTS to avoid asking again
@@ -31,3 +31,5 @@ module.exports = (APP_CONFIG: Config) => {
 
     return router;
 }
+
+export = httpRedirectionMiddleware

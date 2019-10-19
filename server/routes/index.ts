@@ -1,12 +1,12 @@
 import {Router} from 'express';
 import {Config} from '../models/config';
 
-module.exports = (APP_CONFIG: Config) => {
+const getRoutes = (APP_CONFIG: Config): Router => {
     const router = Router();
 
     // PUBLIC
     // router.use('/pusher', require('./pusher')(APP_CONFIG));
-    router.use('/auth', require('./auth')(APP_CONFIG));
+    // router.use('/auth', require('./auth')(APP_CONFIG));
     router.use('/test', require('./test')(APP_CONFIG));
 
     // AuthGate
@@ -23,3 +23,5 @@ module.exports = (APP_CONFIG: Config) => {
     // Return middleware router
     return router;
 }
+
+export = getRoutes

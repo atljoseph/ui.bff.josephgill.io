@@ -18,7 +18,6 @@
   },
   "exclude": [
     "tests/",
-    "**/*.spec",
-    "../node_modules/"
+    "**/*.spec"
   ]
 }

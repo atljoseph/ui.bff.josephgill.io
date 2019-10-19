@@ -1,7 +1,7 @@
 import {Router} from 'express';
 import {Config} from '../models/config';
 
-module.exports = (APP_CONFIG: Config) => {
+const testRoute = (APP_CONFIG: Config) => {
     const router = Router();
     const logger = APP_CONFIG.logger;
 
@@ -11,3 +11,5 @@ module.exports = (APP_CONFIG: Config) => {
 
     return router;
 }
+
+export = testRoute

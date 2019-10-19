@@ -1,5 +1,5 @@
 import {LoggingService} from '../services/logger';
-import { JWTService } from '../services/jwt';
+// import { JWTService } from '../services/jwt';
 
 export interface Config {
     environment: string;
@@ -11,6 +11,6 @@ export interface Config {
     client_root: string;
     max_workers: number;
     cookie_blacklist?: string[];
-    jwtService?: JWTService;
+    // jwtService?: JWTService;
     logger?: LoggingService;
 }

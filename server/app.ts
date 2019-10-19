@@ -13,19 +13,20 @@ import * as dotenv from 'dotenv';
 import {Config} from './models/config';
 import {HelpersService} from './services/helpers';
 import {LoggingService} from './services/logger';
-import {JWTService} from './services/jwt';
+// import {JWTService} from './services/jwt';
 
-dotenv.config({silent: true});
+const dotenvConfig: dotenv.DotenvConfigOptions = {}
+dotenv.config(dotenvConfig);
 
 const APP_CONFIG: Config = {
-    environment: process.env.ENVIRONMENT || 'dev',
-    cookie_name: process.env.COOKIE_NAME || '__joe_dev',
-    proxy_cookie: process.env.PROXY_COOKIE || 'access_token_dev',
-    cookie_secret: process.env.COOKIE_SECRET || 'cookie_secret',
-    port: (+process.env.NODE_PORT) || 4205,
-    log_level: process.env.MORGAN_LOG_LEVEL || 'short',
-    client_root: process.env.CLIENT_ROOT || join(__dirname, '../client/'),
-    max_workers: +(process.env.MAX_BFF_THREADS || cpus().length),
+    environment: process.env.BFF_ENVIRONMENT || 'dev',
+    cookie_name: process.env.BFF_COOKIE_NAME || '__joe_dev',
+    proxy_cookie: process.env.BFF_PROXY_COOKIE || 'access_token_dev',
+    cookie_secret: process.env.BFF_COOKIE_SECRET || 'cookie_secret',
+    port: (+process.env.BFF_PORT) || 4205,
+    log_level: process.env.BFF_MORGAN_LOG_LEVEL || 'short',
+    client_root: process.env.BFF_CLIENT_ROOT || join(__dirname, '../client/'),
+    max_workers: +(process.env.BFF_MAX_THREADS || cpus().length),
 };
 
 APP_CONFIG.cookie_blacklist = ['access_token_dev', 'access_token_uat', APP_CONFIG.cookie_name];
@@ -33,6 +34,8 @@ APP_CONFIG.cookie_blacklist = ['access_token_dev', 'access_token_uat', APP_CONFI
 console.log(JSON.stringify(APP_CONFIG, null, 2));
 
 if (cluster.isMaster) {
+    // master thread
+
     const numCPUs = Math.max(2, Math.min(cpus().length, APP_CONFIG.max_workers));
     const workers: cluster.Worker[] = [];
     console.log('[ master ]: App starting on port', APP_CONFIG.port);
@@ -70,16 +73,25 @@ if (cluster.isMaster) {
     });
 
 } else {
+    // worker thread(s)
+
     // Services
     const loggingService = new LoggingService();
     APP_CONFIG.logger = loggingService;
 
-    const jwtService = new JWTService();
-    APP_CONFIG.jwtService = jwtService;
+    // const jwtService = new JWTService();
+    // APP_CONFIG.jwtService = jwtService;
 
+    // set up an express server
     const app = express();
+
+    // use compression
     app.use(compress());
+
+    // use cookieParser with secret
     app.use(cookieParser(APP_CONFIG.cookie_secret));
+
+    // logging
     app.use(
         morgan(
             APP_CONFIG.log_level || ((tokens, req, res) => LoggingService.customLogger(tokens, req, res)),
@@ -92,6 +104,7 @@ if (cluster.isMaster) {
     // redirect http to https
     app.use(require('./middleware/httpredir')(APP_CONFIG));
 
+    // enable cors
     app.use((req, res, next) => {
         const origin = req.get('origin');
         // Allow CORS from extension. Hardcode to extension id once deployed
@@ -107,19 +120,20 @@ if (cluster.isMaster) {
 
     app.options('*', (req, res, next) => res.send(true));
 
+    // Defeat the IE 11 cache without ruining PWA caching
     app.use((req, res, next) => {
-        // Defeat the IE 11 cache without ruining PWA caching
         res.set('Expires', '0');
         return next();
     });
 
+    // set up http vs https
     let server;
-    if (process.env.HTTPS) {
+    if (process.env.BFF_HTTPS) {
         let ssl_config = {
-            key: (process.env.SSLKEY ? HelpersService.tryLoad(process.env.SSLKEY) : undefined),
-            cert: (process.env.SSLCERT ? HelpersService.tryLoad(process.env.SSLCERT) : undefined),
-            ca: (process.env.SSLCHAIN ? HelpersService.tryLoad(process.env.SSLCHAIN) : undefined),
-            pfx: (process.env.SSLPFX ? HelpersService.tryLoad(process.env.SSLPFX) : undefined)
+            key: (process.env.BFF_SSLKEY ? HelpersService.tryLoad(process.env.BFF_SSLKEY) : undefined),
+            cert: (process.env.BFF_SSLCERT ? HelpersService.tryLoad(process.env.BFF_SSLCERT) : undefined),
+            ca: (process.env.BFF_SSLCHAIN ? HelpersService.tryLoad(process.env.BFF_SSLCHAIN) : undefined),
+            pfx: (process.env.BFF_SSLPFX ? HelpersService.tryLoad(process.env.BFF_SSLPFX) : undefined)
         };
         server = spdy.createServer(ssl_config, app);
         let redir = express();
@@ -132,12 +146,11 @@ if (cluster.isMaster) {
         server = createServer(app);
     }
 
-    app.use(require('./middleware/auth')(APP_CONFIG));
+    // use authing middleware
+    // app.use(require('./middleware/auth')(APP_CONFIG));
 
-    /*------- Proxy -------*/
-    app.use('/go', require('./routes/proxy/go')(APP_CONFIG));
-    // app.use('/node', require('./routes/proxy/node')(APP_CONFIG));
-    // app.use('/quickbooks', require('./routes/proxy/quickbooks')(APP_CONFIG));
+    /*------- Proxy Routes -------*/
+    app.use('/go', require('./proxy-routes/go')(APP_CONFIG));
     // app.use('/upload', require('./routes/proxy/upload')(APP_CONFIG));
 
     /*---- Body Parser ----*/
@@ -145,7 +158,7 @@ if (cluster.isMaster) {
     app.use(bodyParser.urlencoded({limit: '50mb', extended: true}));
 
     /*-------- API --------*/
-    app.use(['/api', '/bff', '/extension'], require('./routes/api')(APP_CONFIG));
+    app.use(['/api', '/bff', '/extension'], require('./routes')(APP_CONFIG));
 
     /*------- Angular client on Root ------- */
     app.use('/wb-assets/',
@@ -164,10 +177,12 @@ if (cluster.isMaster) {
         return res.sendFile(join(APP_CONFIG.client_root, './index.html'));
     });
 
+    // if route not resolved above, return 404
     app.all('*', (req, res) => {
         return res.status(404).send({Message: '404 UNKNOWN ROUTE'});
     });
 
+    // listen
     server.listen(APP_CONFIG.port);
 
     if (cluster.isMaster) {

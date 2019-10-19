@@ -13,17 +13,17 @@ const morgan = require("morgan");
 const dotenv = require("dotenv");
 const helpers_1 = require("./services/helpers");
 const logger_1 = require("./services/logger");
-const jwt_1 = require("./services/jwt");
-dotenv.config({ silent: true });
+const dotenvConfig = {};
+dotenv.config(dotenvConfig);
 const APP_CONFIG = {
-    environment: process.env.ENVIRONMENT || 'dev',
-    cookie_name: process.env.COOKIE_NAME || '__joe_dev',
-    proxy_cookie: process.env.PROXY_COOKIE || 'access_token_dev',
-    cookie_secret: process.env.COOKIE_SECRET || 'cookie_secret',
-    port: (+process.env.NODE_PORT) || 4205,
-    log_level: process.env.MORGAN_LOG_LEVEL || 'short',
-    client_root: process.env.CLIENT_ROOT || path_1.join(__dirname, '../client/'),
-    max_workers: +(process.env.MAX_BFF_THREADS || os_1.cpus().length),
+    environment: process.env.BFF_ENVIRONMENT || 'dev',
+    cookie_name: process.env.BFF_COOKIE_NAME || '__joe_dev',
+    proxy_cookie: process.env.BFF_PROXY_COOKIE || 'access_token_dev',
+    cookie_secret: process.env.BFF_COOKIE_SECRET || 'cookie_secret',
+    port: (+process.env.BFF_PORT) || 4205,
+    log_level: process.env.BFF_MORGAN_LOG_LEVEL || 'short',
+    client_root: process.env.BFF_CLIENT_ROOT || path_1.join(__dirname, '../client/'),
+    max_workers: +(process.env.BFF_MAX_THREADS || os_1.cpus().length),
 };
 APP_CONFIG.cookie_blacklist = ['access_token_dev', 'access_token_uat', APP_CONFIG.cookie_name];
 console.log(JSON.stringify(APP_CONFIG, null, 2));
@@ -63,8 +63,6 @@ if (cluster.isMaster) {
 else {
     const loggingService = new logger_1.LoggingService();
     APP_CONFIG.logger = loggingService;
-    const jwtService = new jwt_1.JWTService();
-    APP_CONFIG.jwtService = jwtService;
     const app = express();
     app.use(compress());
     app.use(cookieParser(APP_CONFIG.cookie_secret));
@@ -89,12 +87,12 @@ else {
         return next();
     });
     let server;
-    if (process.env.HTTPS) {
+    if (process.env.BFF_HTTPS) {
         let ssl_config = {
-            key: (process.env.SSLKEY ? helpers_1.HelpersService.tryLoad(process.env.SSLKEY) : undefined),
-            cert: (process.env.SSLCERT ? helpers_1.HelpersService.tryLoad(process.env.SSLCERT) : undefined),
-            ca: (process.env.SSLCHAIN ? helpers_1.HelpersService.tryLoad(process.env.SSLCHAIN) : undefined),
-            pfx: (process.env.SSLPFX ? helpers_1.HelpersService.tryLoad(process.env.SSLPFX) : undefined)
+            key: (process.env.BFF_SSLKEY ? helpers_1.HelpersService.tryLoad(process.env.BFF_SSLKEY) : undefined),
+            cert: (process.env.BFF_SSLCERT ? helpers_1.HelpersService.tryLoad(process.env.BFF_SSLCERT) : undefined),
+            ca: (process.env.BFF_SSLCHAIN ? helpers_1.HelpersService.tryLoad(process.env.BFF_SSLCHAIN) : undefined),
+            pfx: (process.env.BFF_SSLPFX ? helpers_1.HelpersService.tryLoad(process.env.BFF_SSLPFX) : undefined)
         };
         server = spdy.createServer(ssl_config, app);
         let redir = express();
@@ -107,11 +105,10 @@ else {
     else {
         server = http_1.createServer(app);
     }
-    app.use(require('./middleware/auth')(APP_CONFIG));
-    app.use('/go', require('./routes/proxy/go')(APP_CONFIG));
+    app.use('/go', require('./proxy-routes/go')(APP_CONFIG));
     app.use(bodyParser.json({ limit: '100mb' }));
     app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
-    app.use(['/api', '/bff', '/extension'], require('./routes/api')(APP_CONFIG));
+    app.use(['/api', '/bff', '/extension'], require('./routes')(APP_CONFIG));
     app.use('/wb-assets/', express.static(path_1.join(APP_CONFIG.client_root, './wb-assets'), { maxAge: 0, setHeaders: helpers_1.HelpersService.changeContentType }));
     app.get('*.*', express.static(APP_CONFIG.client_root, { maxAge: 0 }));
     app.get('*', (req, res, next) => {

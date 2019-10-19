@@ -1,20 +1,20 @@
 import { Router } from 'express';
 import * as httpProxy from 'http-proxy-middleware';
-import { Config } from '../../models/config';
-import { ProxyService } from '../../services/proxy';
+import { Config } from '../models/config';
+import { ProxyService } from '../services/proxy';
 
-module.exports = (APP_CONFIG: Config) => {
+const goProxyRoute = (APP_CONFIG: Config) => {
     const router = Router();
     const logger = APP_CONFIG.logger;
 
-    const API_HOST = process.env.GO_API_HOST || 'http://localhost:8080/v1/api';
+    const API_HOST = process.env.BFF_GO_API_HOST || 'http://localhost:1234/v1/api';
 
     function onError(error, req, res) {
         logger.logError(error, 'PROXY ERROR');
     }
 
     function onProxyReq(proxyReq, req, res) {
-        console.log('onProxyReq ===========>', req.url)
+        // console.log('onProxyReq ===========>', req.url)
         // if (res.locals.authHeader) {
         //     // add auth header to request
         //     proxyReq.setHeader('Authorization', `Bearer ${res.locals.authHeader}`);
@@ -28,7 +28,7 @@ module.exports = (APP_CONFIG: Config) => {
     }
 
     function onProxyRes(proxyRes, req, res) {
-        console.log('onProxyRes ===========>', proxyRes.statusMessage, proxyRes.statusCode, proxyRes.body)
+        // console.log('onProxyRes ===========>', proxyRes.statusMessage, proxyRes.statusCode, proxyRes.body)
         // if (proxyRes && proxyRes.headers && ('set-cookie' in proxyRes.headers)) {
         //     const proxyCookies = proxyRes.headers['set-cookie'];
         //     const resCookies = [];
@@ -70,3 +70,5 @@ module.exports = (APP_CONFIG: Config) => {
 
     return router;
 };
+
+export = goProxyRoute

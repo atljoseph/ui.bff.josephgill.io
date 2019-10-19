@@ -36,8 +36,8 @@ var arguments = require('yargs').argv,
       'uat': 'staging',
       'test': 'testing'
     },
-    environment = argsMap[arguments.env || process.env.env];
-var serveLocal = !!(arguments.local || process.env.local);
+    environment = argsMap[arguments.env || process.env.BFF_ENVIRONMENT];
+  var serveLocal = !!(arguments.BFF_LOCAL || process.env.BFF_LOCAL);
 
 /**
  * Temporarily we can also pass in an endpoint as an argument,
