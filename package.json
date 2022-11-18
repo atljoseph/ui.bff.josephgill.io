@@ -18,7 +18,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "devDependencies": {
-    "@angular-devkit/build-angular": "0.13.4",
+    "@angular-devkit/build-angular": "15.0.0",
     "@angular/animations": "7.1.4",
     "@angular/cli": "7.1.4",
     "@angular/common": "7.1.4",
